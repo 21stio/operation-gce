@@ -1,0 +1,126 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - services
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: traefik
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik
+subjects:
+- kind: ServiceAccount
+  name: traefik
+  namespace: default
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-config
+data:
+  config: |
+    defaultEntryPoints = ["http"]
+    [entryPoints]
+      [entryPoints.http]
+      address = ":80"
+      [entryPoints.http.auth.basic]
+      users = ["test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/", "test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0"]
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: traefik
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        deployment: traefik
+    spec:
+      serviceAccountName: traefik
+      terminationGracePeriodSeconds: 60
+      containers:
+      - image: traefik
+        name: traefik
+        args:
+        - --web
+        - --kubernetes
+        - --configfile=/config/config
+        volumeMounts:
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: config
+        configMap:
+          name: traefik
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+spec:
+  selector:
+    deployment: traefik
+  ports:
+  - port: 80
+    name: http
+  - port: 443
+    name: https
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-ui
+spec:
+  selector:
+    deployment: traefik
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: traefik
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: traefik.blue.sunsparks.xyz
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: traefik-ui
+          servicePort: 80
+---
