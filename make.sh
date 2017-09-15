@@ -27,7 +27,7 @@ function create_zone {
 }
 
 function create_record {
-	gcloud dns record-sets import --zone sunsparks-xyz <(printf "kind: dns#resourceRecordSet\nname: ${CLUSTER_NAME}.${CLUSTER_DOMAIN}.\nrrdatas:\n- $(get_ingress_ip)\nttl: 300\ntype: A")
+	gcloud dns record-sets import --zone sunsparks-xyz <(printf "kind: dns#resourceRecordSet\nname: ${CLUSTER_NAME}.${CLUSTER_DOMAIN}.\nrrdatas:\n- $(get_ingress_ip)\nttl: 60\ntype: A")
 }
 
 function apply {
