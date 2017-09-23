@@ -45,7 +45,7 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: game-config
+  name: traefik
 data:
   config: |
     defaultEntryPoints = ["http"]
@@ -53,7 +53,7 @@ data:
       [entryPoints.http]
       address = ":80"
       [entryPoints.http.auth.basic]
-      users = ["test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/", "test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0"]
+      users = ["{{ htpasswd }}"]
 ---
 kind: Deployment
 apiVersion: extensions/v1beta1
@@ -116,7 +116,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: traefik.blue.sunsparks.xyz
+  - host: traefik.{{cluster_host}}
     http:
       paths:
       - path: /

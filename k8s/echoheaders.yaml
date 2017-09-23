@@ -35,7 +35,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: echoheaders.blue.sunsparks.xyz
+  - host: echoheaders.{{cluster_host}}
     http:
       paths:
       - path: /

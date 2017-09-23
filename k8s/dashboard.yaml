@@ -6,7 +6,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: dashboard.blue.sunsparks.xyz
+  - host: dashboard.{{ cluster_host }}
     http:
       paths:
       - path: /

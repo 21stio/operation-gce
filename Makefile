@@ -17,6 +17,10 @@ cr: create_record
 create_record:
 	${SOURCE} && create_record
 
+rr: remove_record
+remove_record:
+	${SOURCE} && remove_record
+
 a: apply
 apply:
 	${SOURCE} && apply
