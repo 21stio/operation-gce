@@ -27,9 +27,7 @@ function validate_environment {
 validate_requirements
 validate_environment
 
-gcloud --project=${PROJECT} container clusters get-credentials sunsparks
-
-function create {
+function create_cluster {
     gcloud --project=${PROJECT} container clusters create \
 		--cluster-version=1.7.5 \
 		--disable-addons=HttpLoadBalancing \
@@ -40,7 +38,15 @@ function create {
 		--max-nodes-per-pool=100 \
 		--machine-type=n1-standard-1 \
 		--num-nodes=1 \
-		${CLUSTER_HOST_NAME}
+		$(get_cluster_name)
+}
+
+function delete_cluster {
+    gcloud --project=${PROJECT} container clusters delete $(get_cluster_name)
+}
+
+function get_cluster_name() {
+	echo ${CLUSTER_HOST_SUB}-${CLUSTER_HOST_NAME}-${CLUSTER_HOST_TLD}
 }
 
 function list {
@@ -52,6 +58,11 @@ function list {
     echo "$(
 		printf "\n -- forwarding-rules\n"
 		gcloud compute forwarding-rules list
+	)" &
+
+	echo "$(
+		printf "\n -- target-pools\n"
+		gcloud compute target-pools list
 	)" &
 
 	echo "$(
@@ -74,18 +85,18 @@ function get_dns_name() {
 	echo ${CLUSTER_HOST_NAME}.${CLUSTER_HOST_TLD}
 }
 
-function get_cluster_name() {
-	echo ${CLUSTER_HOST_SUB}-${CLUSTER_HOST_NAME}-${CLUSTER_HOST_TLD}
-}
-
 function create_record {
+	rm transaction.yaml ||
+
 	gcloud --project=${PROJECT} dns record-sets transaction start --zone=$(get_dns_zone)
 	gcloud --project=${PROJECT} dns record-sets transaction add --zone=$(get_dns_zone) --name=$(get_cluster_host). --ttl=60 --type=A $(get_ingress_ip)
 	gcloud --project=${PROJECT} dns record-sets transaction add --zone=$(get_dns_zone) --name=\*.$(get_cluster_host). --ttl=60 --type=A $(get_ingress_ip)
 	gcloud --project=${PROJECT} dns record-sets transaction execute --zone=$(get_dns_zone)
 }
 
-function remove_record {
+function delete_record {
+	rm transaction.yaml ||
+
 	gcloud --project=${PROJECT} dns record-sets transaction start --zone=$(get_dns_zone)
 	gcloud --project=${PROJECT} dns record-sets transaction remove --zone=$(get_dns_zone) --name=$(get_cluster_host). --ttl=60 --type=A $(get_ingress_ip)
 	gcloud --project=${PROJECT} dns record-sets transaction remove --zone=$(get_dns_zone) --name=\*.$(get_cluster_host). --ttl=60 --type=A $(get_ingress_ip)
@@ -93,6 +104,8 @@ function remove_record {
 }
 
 function apply {
+	gcloud --project=${PROJECT} container clusters get-credentials $(get_cluster_name)
+
 	kubectl apply \
 		--namespace default \
 		--filename k8s/rbac.yaml
@@ -119,6 +132,8 @@ function apply {
 }
 
 function get_ingress_ip {
+	gcloud --project=${PROJECT} container clusters get-credentials $(get_cluster_name)
+
 	kubectl get service traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 }
 
@@ -130,14 +145,44 @@ function get_cluster_host {
 	echo ${CLUSTER_HOST_SUB}.${CLUSTER_HOST_NAME}.${CLUSTER_HOST_TLD}
 }
 
-function get_forwarding_rule_id {
-	gcloud compute forwarding-rules list --format json | jq ".[0].id"
+function get_forwarding_rule_name {
+	gcloud compute forwarding-rules list --format json | jq -r ".[0].name"
+}
+
+function get_forwarding_rule_region {
+	gcloud compute forwarding-rules list --format json | jq -r ".[0].region"
+}
+
+function get_target_pool_name {
+	gcloud compute target-pools list --format json | jq -r ".[0].name"
+}
+
+function get_target_pool_region {
+	gcloud compute target-pools list --format json | jq -r ".[0].region"
 }
 
 function delete_forwarding_rule {
-	gcloud compute forwarding-rules remove $(get_forwarding_rule_id)
+	gcloud compute forwarding-rules delete --region=$(get_forwarding_rule_region) $(get_forwarding_rule_name)
+}
+
+function delete_target_pool {
+	gcloud compute target-pools delete --region=$(get_target_pool_region) $(get_target_pool_name)
 }
 
 function generate_htpasswd {
 	htpasswd -b -n ${HTPASSWD_USER} ${HTPASSWD_PASSWORD}
+}
+
+function teardown {
+	delete_record ||
+	delete_forwarding_rule ||
+	delete_target_pool ||
+	delete_cluster
+}
+
+function setup {
+	create_cluster ||
+	apply ||
+	sleep 30
+	create_record
 }

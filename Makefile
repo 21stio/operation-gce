@@ -1,9 +1,9 @@
 SHELL=/bin/bash
 SOURCE=source ./make.sh
 
-c: create
-create:
-	${SOURCE} && create
+cc: create_cluster
+create_cluster:
+	${SOURCE} && create_cluster
 
 l: list
 list:
@@ -28,3 +28,15 @@ apply:
 t: test
 test:
 	${SOURCE} && tests
+
+s: setup
+setup:
+	${SOURCE} && setup
+
+td: teardown
+teardown:
+	${SOURCE} && teardown
+
+dfr: delete_forwarding_rule
+delete_forwarding_rule:
+	${SOURCE} && delete_forwarding_rule
