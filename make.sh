@@ -44,11 +44,22 @@ function create {
 }
 
 function list {
-	echo "Clusters"
-    gcloud --project=${PROJECT} container clusters list
+	echo "$(
+		printf "\n -- dns\n"
+		gcloud dns record-sets list --zone $(get_dns_zone)
+    )" &
 
-    echo "LoadBalancers"
-    gcloud --project=${PROJECT} compute addresses list
+    echo "$(
+		printf "\n -- forwarding-rules\n"
+		gcloud compute forwarding-rules list
+	)" &
+
+	echo "$(
+		printf "\n -- clusters\n"
+		gcloud container clusters list
+	)" &
+
+	wait
 }
 
 function create_zone {
@@ -61,6 +72,10 @@ function get_dns_zone() {
 
 function get_dns_name() {
 	echo ${CLUSTER_HOST_NAME}.${CLUSTER_HOST_TLD}
+}
+
+function get_cluster_name() {
+	echo ${CLUSTER_HOST_SUB}-${CLUSTER_HOST_NAME}-${CLUSTER_HOST_TLD}
 }
 
 function create_record {
@@ -113,6 +128,14 @@ function tests {
 
 function get_cluster_host {
 	echo ${CLUSTER_HOST_SUB}.${CLUSTER_HOST_NAME}.${CLUSTER_HOST_TLD}
+}
+
+function get_forwarding_rule_id {
+	gcloud compute forwarding-rules list --format json | jq ".[0].id"
+}
+
+function delete_forwarding_rule {
+	gcloud compute forwarding-rules remove $(get_forwarding_rule_id)
 }
 
 function generate_htpasswd {

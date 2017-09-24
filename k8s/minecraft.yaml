@@ -1,0 +1,47 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: minecraft
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        deployment: minecraft
+    spec:
+      containers:
+      - name: minecraft
+        image: itzg/minecraft-server
+        env:
+        - name: EULA
+          value: "TRUE"
+        ports:
+        - containerPort: 25565
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft
+spec:
+  type: ClusterIP
+  selector:
+    deployment: minecraft
+  ports:
+  - port: 80
+    targetPort: 25565
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: minecraft
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: minecraft.blue.sunsparks.xyz
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: minecraft
+          servicePort: 80
